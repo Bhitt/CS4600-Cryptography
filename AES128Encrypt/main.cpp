@@ -27,6 +27,7 @@ typedef bitset<128> dataBlock;
 //User libraries
 
 //Global Constants
+bool flag = true;
 
 unsigned char sbox[256] = { //s-box
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -56,11 +57,12 @@ word Rcon[10] = {0x01000000, 0x02000000, 0x04000000, 0x08000000, 0x10000000,
 byte toByte(unsigned char b);
 void charToByte(byte out[16], const char s[16]);
 void divideToByte(byte out[16], dataBlock& data);
+void swapByteOrder(byte p[16]);
 dataBlock mergeByte(byte in[16]);
 //****key expansions***//
 word toWord(byte& k1, byte& k2, byte& k3, byte& k4);
-word rotateWord(word& w);
-word subWord(word& w);
+word rotateWord(word w);
+word subWord(word w);
 void keyExpansion(byte key[16], word keySchedule[44]);
 //****encryption****//
 void encrypt(byte in[16], word w[44]);
@@ -73,7 +75,7 @@ byte GFMul(byte a, byte b);
 //Execution begins here
 int main(int argc, char** argv) {
     //variable declaration for the key
-    string keyString = "abcde12345abcde1";
+    string keyString = "F52B67EA34012298EF984755ABCC25A1";
     byte key[16];
     // filepath passed in on the command line
     string src_filepath = argv[1];
@@ -82,39 +84,60 @@ int main(int argc, char** argv) {
     /* 32 digit hex value to be taken from the user as hex digits (4 bits each) 
        with nothing echoed in the terminal */
     //the above code needs to only accept 32 bit keys
+    //remember to ignore whitespaces
     
     //send the string of chars to be converted to bytes
-    string tempPath1 = "test.txt";
-    string tempPath2 = "test.enc";
+    string tempPath1 = "m.pdf";
+    string tempPath2 = "m.enc";
     
+    //convert the key string to a byte array
     charToByte(key, keyString.c_str());
     
     //create the key schedule
     word keySchedule[44];
     keyExpansion(key,keySchedule);
+    for(int i=0;i<11;i++){
+        cout<<"Round"<<i<<':'<<keySchedule[i]<<' '<<keySchedule[i+1]<<' '<<keySchedule[i+2]<<' '<<keySchedule[i+3]<<endl;
+    }
     
     //fetch the data from the file
     dataBlock data; // 128 bits at a time
     byte plain[16]; // bits are stored in byte array
+    
     ifstream in;
     ofstream out;
     in.open(tempPath1, ios::binary);  //open the file specified
     out.open(tempPath2, ios::binary);  //output to file specified
     while(in.read((char*)&data, sizeof(data)))  
     {  
-        divideToByte(plain, data);  
+        divideToByte(plain, data);
+        swapByteOrder(plain);
+        if(flag){
+            cout<<"plain[0] :"<<plain[0]<<endl;
+            cout<<"plain[15]:"<<plain[15]<<endl;
+            flag=false;
+        }
+        
+
         encrypt(plain, keySchedule);  
-        data = mergeByte(plain);  
+        data = mergeByte(plain);
         out.write((char*)&data, sizeof(data));  
-        cout<<data<<endl;
         data.reset();  //Set 0  
-    }  
+    } 
     in.close();  
     out.close();  
     
+//    byte plain[16] = {0x25,0x50,0x44,0x46,0x2d,0x31,0x2e,0x35,0x0a,0x25,0xbf,0xf7,0xa2,0xfe,0x0a,0x32};
+//    cout<<endl;
+//        cout<<plain[0]<<endl;
+//    encrypt(plain, keySchedule);
+//    cout<<endl;
+//        cout<<plain[0]<<endl;
+    
+    
+    
     return 0;
 }
-
 /*
      ************* Conversions ******************   
  */
@@ -133,6 +156,21 @@ void charToByte(byte out[16], const char s[16]){
     }
 }
 
+//swap order of bytes because of endianess
+void swapByteOrder(byte p[16]){
+    byte temp[16];
+    for(int i=0;i<16;i++){
+        temp[i] = p[15-i]; 
+    }
+    if(flag) cout<<"before p[0]"<<p[0]<<endl;
+    
+    for(int i=0;i<16;i++){
+        p[i] = temp[i];
+    }
+    
+    if (flag) cout<<"p[0]"<<p[0]<<endl;
+}
+
 // take 128 bits and send them into 16 bytes in an array of bytes 
 void divideToByte(byte out[16], dataBlock& data){  
     dataBlock temp;  
@@ -140,7 +178,7 @@ void divideToByte(byte out[16], dataBlock& data){
         temp = (data << 8*i) >> 120;  
         out[i] = temp.to_ulong();  
     }
-}  
+}
   
 // take 16 bytes and send them into 128 bits  
 dataBlock mergeByte(byte in[16]){  
@@ -174,19 +212,19 @@ word toWord(byte& k1, byte& k2, byte& k3, byte& k4){
     result |= temp;  
     temp = k4.to_ulong();  // K4  
     result |= temp;  
-    return result;  
+    return result;
 }
 
 /*rotate word -> left shift cyclic 
  * ex: [b0,b1,b2,b3] rotates to [b1,b2,b3,b0] */
-word rotateWord(word& w){
+word rotateWord(word w){
     word high = w << 8;  
     word low = w >> 24;  
     return high | low;  
 }
 
 // S-box byte substitution on single word
-word subWord(word& w){
+word subWord(word w){
     //create temporary word
     word temp;
     //substitute all four bytes
@@ -205,7 +243,7 @@ void keyExpansion(byte key[16], word keySchedule[44]){
     //create a temporary word
     word temp;
     int i=0; //index
-    //first four of keySchedule are input keys
+    //first four words of keySchedule are input key words
     while(i < 4){
         keySchedule[i] = toWord(key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]);
         ++i;
@@ -214,12 +252,19 @@ void keyExpansion(byte key[16], word keySchedule[44]){
     i=4;
     while(i < 44){  // 44 total words in key schedule (4 per 11 rounds)
         temp = keySchedule[i-1]; // keep the previous word
-        if(i%4 ==0){
-            word temp2 = rotateWord(temp);
-            keySchedule[i] = keySchedule[i-4]^subWord(temp2)^ Rcon[i/4-1];
-        }else{
-            keySchedule[i] = keySchedule[i-4]^temp;
+//        if(i%4 == 0){ //core function
+//            word temp2 = rotateWord(temp);  //left shift cyclic the bytes in the word
+//            temp2 = subWord(temp2);         //s-box the bytes in the word
+//            temp2 = temp2 ^ Rcon[(i/4)-1];  //xor the first byte with the round constant
+//            keySchedule[i] = keySchedule[i-4]^ temp2;
+//            cout<<"keySch["<<i<<"]:"<<keySchedule[i]<<endl;
+//        }else{   //just xor
+//            keySchedule[i] = keySchedule[i-4]^temp;
+//        }
+        if( i%4 == 0 ){ //core function
+            temp = subWord(rotateWord(temp)) ^ Rcon[i/4-1];
         }
+        keySchedule[i] = keySchedule[i-4]^temp;
         ++i;
     }
 }
@@ -228,19 +273,19 @@ void keyExpansion(byte key[16], word keySchedule[44]){
      ************* Encryption ******************   
  */
 void encrypt(byte in[16], word w[44]){
-    word key[4];  
-    for(int i=0; i<4; ++i)  
+    word key[4]; //current round key 
+    for(int i=0; i<4; ++i)
         key[i] = w[i];  
-    AddRoundKey(in, key);
+    AddRoundKey(in, key); //start by adding the round key to the plain text
     //first 9 rounds
     for(int round=1; round<10; ++round)  
     {  
-        SubBytes(in);  
-        ShiftRows(in);  
-        MixColumns(in);  
-        for(int i=0; i<4; ++i)  
+        SubBytes(in);   //byte substitution layer
+        ShiftRows(in);  //shift rows layer
+        MixColumns(in); //mix columns layer 
+        for(int i=0; i<4; ++i)  //get the next round key
             key[i] = w[4*round+i];  
-        AddRoundKey(in, key);  
+        AddRoundKey(in, key);  //key addition layer
     }  
     //final round
     SubBytes(in);  
