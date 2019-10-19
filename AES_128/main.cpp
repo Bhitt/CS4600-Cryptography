@@ -14,11 +14,13 @@
 #include <iostream>
 #include <fstream>
 #include <bitset>
+#include <math.h>
+#include <windows.h>
 
 using namespace std;
 
 //Enums
-
+typedef bitset<128> data;
 
 //global constants
 //S-Box
@@ -83,6 +85,8 @@ unsigned char mul3[] =
 unsigned char rcon[11] = {0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36}; // round constant
 
 //Function prototypes
+void getKey(unsigned char []);
+void bitsetToChar(unsigned char *, data &);
 void encrypt(unsigned char *, unsigned char *);
 void keyAddition(unsigned char *, unsigned char *);
 void byteSub(unsigned char *);
@@ -98,8 +102,12 @@ void core(unsigned char *, unsigned char );
 int main(int argc, char** argv) {
     //get the file path from the command line
     string src_filepath;
-    if(argc == 1) src_filepath = argv[0];
-    else src_filepath = argv[1];
+	if(argc == 0) {
+		cout<<"No plaintext file specified"<<endl;
+		return 0;
+	}
+    else if(argc == 1) src_filepath = argv[0];	//should be first argument in terminal
+    else src_filepath = argv[1];				//netbeans has its own argument first
     //create the destination path based on file path
     string dst_filepath = src_filepath.substr(0,src_filepath.find_last_of('.'))+".enc";
     //user inputs key as 32 hex characters
@@ -107,22 +115,25 @@ int main(int argc, char** argv) {
      //test
     unsigned char key[16] = {0xF5,0x2B,0x67,0xEA,0x34,0x01,0x22,0x98,0xEF,0x98,0x47,0x55,0xAB,0xCC,0x25,0xA1};
     
+    getKey(key);
+
     //calculate the key schedule
     unsigned char keySchedule[176];
     keyExpansion(key,keySchedule);
     
+    //variables for plaintext and cipher text
     unsigned char  * x = new unsigned char[16];
+    data d;
     
     //file i/o
     ifstream in;
     ofstream out;
     in.open(src_filepath, ios::in | ios::binary);     // open the specified file
     out.open(dst_filepath, ios::out | ios::binary);    // output to specified file
-    
-    while(in.read((char*)x, sizeof(x)*16)){ 
-        //encrypt 128 bits at a time
+    while(in.read((char*)&d, sizeof(d))){ //encrypt 128 bits at a time
+        bitsetToChar(x,d); //convert 128 to char array
         encrypt(x,keySchedule);
-        out.write((char*)x, sizeof(x)*16);
+        out.write((char *)&x[0], 16); //write char array to file
     }
     //close files
     in.close();
@@ -134,7 +145,31 @@ int main(int argc, char** argv) {
     //Exit stage left
     return 0;
 }
-
+//--------------------------------------------------------//
+//              Get Key                                   //
+//--------------------------------------------------------//
+void getKey(unsigned char k[]){
+    //prompt for input
+    cout<<"Enter in your 32 digit hex value key now:"<<endl;
+    //hide input from terminal
+    
+}
+//--------------------------------------------------------//
+//              128 bits to char array                    //
+//--------------------------------------------------------//
+void bitsetToChar(unsigned char *x, data &d){
+    char current = 0;
+    int offset = 0;
+    for(int i=0;i<128;i++){
+        if(d[i]){ //if bit is true
+            current |= (char)(int)pow(2, i- offset * 8);// set that bit to true in current masked value
+        } //otherwise let it be false
+        if((i+1) % 8 == 0){ //every 8 bits
+            x[offset++] = current;    //save masked value to buffer & raise offset of buffer
+            current = 0; //clear masked value
+        }
+    }
+}
 //--------------------------------------------------------//
 //              Encrypt                                   //
 //--------------------------------------------------------//
