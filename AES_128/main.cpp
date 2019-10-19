@@ -86,6 +86,7 @@ unsigned char rcon[11] = {0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 
 
 //Function prototypes
 void getKey(unsigned char []);
+void padding(unsigned char*, int);
 void bitsetToChar(unsigned char *, data &);
 void encrypt(unsigned char *, unsigned char *);
 void keyAddition(unsigned char *, unsigned char *);
@@ -128,13 +129,17 @@ int main(int argc, char** argv) {
     //file i/o
     ifstream in;
     ofstream out;
+    int charRead=0;
     in.open(src_filepath, ios::in | ios::binary);     // open the specified file
     out.open(dst_filepath, ios::out | ios::binary);    // output to specified file
-    while(in.read((char*)&d, sizeof(d))){ //encrypt 128 bits at a time
+    while(!in.eof()){ //encrypt 128 bits at a time
+        d.reset(); //reset for padding
+        in.read((char*)&d, sizeof(d));
         bitsetToChar(x,d); //convert 128 to char array
         encrypt(x,keySchedule);
         out.write((char *)&x[0], 16); //write char array to file
     }
+    
     //close files
     in.close();
     out.close();
@@ -153,6 +158,14 @@ void getKey(unsigned char k[]){
     cout<<"Enter in your 32 digit hex value key now:"<<endl;
     //hide input from terminal
     
+}
+//--------------------------------------------------------//
+//              pad the buffer to 128                     //
+//--------------------------------------------------------//
+void padding(unsigned char* x, int charRead){
+    for(int i=charRead;i<16;i++){
+        x[i]=0x00;
+    }
 }
 //--------------------------------------------------------//
 //              128 bits to char array                    //
