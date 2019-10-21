@@ -15,7 +15,8 @@
 #include <fstream>
 #include <bitset>
 #include <math.h>
-#include <windows.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
@@ -86,7 +87,8 @@ unsigned char rcon[11] = {0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 
 
 //Function prototypes
 void getKey(unsigned char []);
-void padding(unsigned char*, int);
+int  charHex(char ch);
+void stringToChar(unsigned char *dest, const char *source, int bytes_n);
 void bitsetToChar(unsigned char *, data &);
 void encrypt(unsigned char *, unsigned char *);
 void keyAddition(unsigned char *, unsigned char *);
@@ -155,17 +157,32 @@ int main(int argc, char** argv) {
 //--------------------------------------------------------//
 void getKey(unsigned char k[]){
     //prompt for input
-    cout<<"Enter in your 32 digit hex value key now:"<<endl;
+    cout<<"Enter in your 32 digit hex value key now: (format: \"AA B2 02 ... 45\")"<<endl;
     //hide input from terminal
-    
+		//could not figure out this part
+	//get key
+	string s;
+	bool flag = false;
+	do{	//check to make sure the key is 32 hex characters
+	if(flag) cout<<"please enter 32 hex characters"<<endl;
+	getline(cin, s);
+	s.erase(remove(s.begin(), s.end(), ' '), s.end()); //remove spaces
+	flag=true;
+	}while(s.length()!= 32);
+	
+	stringToChar(k,s.c_str(),16);	//send the string to a char array
 }
-//--------------------------------------------------------//
-//              pad the buffer to 128                     //
-//--------------------------------------------------------//
-void padding(unsigned char* x, int charRead){
-    for(int i=charRead;i<16;i++){
-        x[i]=0x00;
-    }
+int charHex(char ch){
+	ch = tolower(ch);
+    if(isdigit(ch))
+        return ch - '0';
+    if(tolower(ch) >= 'a' && tolower(ch) <= 'f')
+        return ch - 'a' + 10;
+    return -1;
+}
+void stringToChar(unsigned char *dest, const char *source, int bytes_n){
+    for(bytes_n--; bytes_n >= 0; bytes_n--)
+        dest[bytes_n] = 16 * charHex(source[bytes_n*2]) + charHex(source[bytes_n*2 +1]);
 }
 //--------------------------------------------------------//
 //              128 bits to char array                    //
