@@ -164,7 +164,7 @@ void getKey(unsigned char k[]){
 	string s;
 	bool flag = false;
 	do{	//check to make sure the key is 32 hex characters
-	if(flag) cout<<"please enter 32 hex characters"<<endl;
+	if(flag) cout<<"Please re-enter 32 hex characters:"<<endl;
 	getline(cin, s);
 	s.erase(remove(s.begin(), s.end(), ' '), s.end()); //remove spaces
 	flag=true;
